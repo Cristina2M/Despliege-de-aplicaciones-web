@@ -1,0 +1,21 @@
+name: Deploy en Vercel
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v5.0.0
+
+      - name: Instalar CLI de Vercel
+        run: npm install -g vercel@latest
+
+      - name: Desplegar a Vercel (producción)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          vercel --prod --yes --token $VERCEL_TOKEN

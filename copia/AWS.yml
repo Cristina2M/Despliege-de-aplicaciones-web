@@ -1,0 +1,16 @@
+name: Ejecutar en AWS
+
+on:
+  workflow_dispatch:   # Permite ejecutarlo manualmente
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        AWS_DEFAULT_REGION: us-east-1
+
+    steps:
+      - name: Clonar el repositorio
+        uses: actions/checkout@v5.0.0

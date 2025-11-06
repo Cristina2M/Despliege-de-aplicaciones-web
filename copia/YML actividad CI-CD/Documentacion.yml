@@ -1,0 +1,34 @@
+name: Documentación
+
+on:
+  workflow_dispatch:
+jobs:
+  docs:
+    name: Verificar y generar documentación
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependencias
+        run: npm install
+
+      # Verificar documentación (no rompe el build si faltan comentarios)
+      - name: Verificar JSDoc (warnings)
+        run: |
+          set +e
+          npm run lint:docs
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "::warning::Se detectaron problemas de documentación (JSDoc)."
+          else
+            echo "Verificación JSDoc correcta."
+          fi
+          exit 0
+
+      # Generar HTML de la documentación en ./docs
+      - name: Construir docs (JSDoc)
+        run: npm run docs:build

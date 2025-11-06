@@ -1,0 +1,19 @@
+name: Comprobar js
+on:
+  workflow_dispatch:
+jobs:
+  comprobar:
+     runs-on: ubuntu-latest
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v5.0.0
+       - name: Buscar archivos .js
+         id: buscar_js
+         run: |
+          # Buscar todos los archivos .js dentro del repositorio
+          JS_FILES=$(find . -type f -name "*.js")
+
+          if [ -z "$JS_FILES" ]; then
+            echo "No se encontraron archivos .js en esta rama."
+            exit 1
+          fi

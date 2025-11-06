@@ -1,0 +1,103 @@
+name: Pipeline completo
+
+on:
+  workflow_dispatch:   # ejecutarlo manualmente
+  # push:
+  #   branches: [ main ]  # descomenta si quieres que corra al hacer push a main
+
+jobs:
+  verificar-js:
+    name: 1) Verificar archivos .js
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Buscar archivos .js
+        run: |
+          JS_FILES=$(find . -type f -name "*.js")
+          if [ -z "$JS_FILES" ]; then
+            echo "No se encontraron archivos .js en esta rama."
+            exit 1
+          fi
+
+  tests:
+    name: 2) Tests unitarios
+    runs-on: ubuntu-latest
+    needs: verificar-js          # solo corre si pasó verificar-js
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: npm ci || npm install
+
+      - name: Ejecutar tests
+        run: npm test             # si falla, se detiene el pipeline
+
+  docs:
+    name: 3) Generar documentación
+    runs-on: ubuntu-latest
+    needs: tests                  # solo corre si los tests pasaron
+    outputs:
+      has_docs: ${{ steps.check.outputs.has_docs }}  # exponemos flag para el deploy
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar dependencias
+        run: npm install
+
+      # Verificar documentación (no rompe el build si faltan comentarios)
+      - name: Verificar JSDoc (warnings)
+        run: |
+          set +e
+          npm run lint:docs
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "::warning::Se detectaron problemas de documentación (JSDoc)."
+          else
+            echo "Verificación JSDoc correcta."
+          fi
+          exit 0
+
+      # Generar HTML de la documentación en ./docs
+      - name: Construir docs (JSDoc)
+        run: npm run docs:build
+
+      - name: Comprobar que hay docs generadas
+        id: check
+        run: |
+          COUNT=$(find docs -type f -name "*.html" | wc -l | xargs)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "Documentación generada ($COUNT archivos HTML)."
+            echo "has_docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No se generó documentación HTML."
+            echo "has_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy-vercel:
+    name: 4) Deploy a Vercel (producción)
+    runs-on: ubuntu-latest
+    needs: docs
+    if: needs.docs.outputs.has_docs == 'true'   # despliega solo si hay docs
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+
+      - name: Instalar CLI de Vercel
+        run: npm install -g vercel@latest
+
+      - name: Desplegar a Vercel (prod)
+        run: vercel --prod --yes --token "$VERCEL_TOKEN"
